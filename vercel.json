@@ -2,22 +2,38 @@
   "version": 2,
   "builds": [
     {
-      "src": "*.html",
+      "src": "jaffeiz restaurant/*.html",
       "use": "@vercel/static"
     },
     {
-      "src": "*.css",
+      "src": "jaffeiz restaurant/*.css",
       "use": "@vercel/static"
     },
     {
-      "src": "*.js",
+      "src": "jaffeiz restaurant/*.js",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     {
-      "src": "/(.*)",
-      "dest": "/index.html"
+      "src": "/",
+      "dest": "/jaffeiz restaurant/index.html"
+    },
+    {
+      "src": "/index.html",
+      "dest": "/jaffeiz restaurant/index.html"
+    },
+    {
+      "src": "/styles.css",
+      "dest": "/jaffeiz restaurant/styles.css"
+    },
+    {
+      "src": "/script.js",
+      "dest": "/jaffeiz restaurant/script.js"
+    },
+    {
+      "src": "/[^.]+",
+      "dest": "/jaffeiz restaurant/index.html"
     }
   ]
 }

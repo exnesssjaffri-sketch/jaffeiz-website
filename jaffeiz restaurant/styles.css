@@ -1557,6 +1557,408 @@ img {
 }
 
 /* ================================================================
+   13. AUTH MODAL (Login / Sign-Up)
+   ================================================================ */
+.auth-modal-content {
+    max-width: 520px;
+    padding: 40px 36px;
+    text-align: left;
+    position: relative;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal-close-btn {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-size: 1.8rem;
+    cursor: pointer;
+    transition: var(--transition);
+    line-height: 1;
+    z-index: 2;
+}
+
+.modal-close-btn:hover {
+    color: var(--color-white);
+    transform: rotate(90deg);
+}
+
+.auth-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.auth-logo {
+    font-family: var(--font-heading);
+    font-size: 2.5rem;
+    font-weight: 900;
+    color: var(--color-primary);
+    letter-spacing: 3px;
+    margin-bottom: 4px;
+}
+
+.auth-tagline {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+    font-weight: 300;
+    letter-spacing: 1px;
+}
+
+/* Tabs */
+.auth-tabs {
+    display: flex;
+    gap: 0;
+    margin-bottom: 28px;
+    border-bottom: 2px solid rgba(255,255,255,0.08);
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 12px 16px;
+    background: none;
+    border: none;
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    position: relative;
+}
+
+.auth-tab::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--color-primary);
+    transition: var(--transition);
+}
+
+.auth-tab.active {
+    color: var(--color-primary);
+}
+
+.auth-tab.active::after {
+    width: 100%;
+}
+
+.auth-tab:hover {
+    color: var(--color-primary-light);
+}
+
+/* Auth Forms */
+.auth-form {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.auth-form.active {
+    display: block;
+}
+
+/* Google Button */
+.auth-social {
+    margin-bottom: 20px;
+}
+
+.btn-google {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    width: 100%;
+    padding: 14px 20px;
+    background: var(--color-white);
+    color: #333;
+    border: 2px solid #ddd;
+    border-radius: 50px;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-google:hover {
+    background: #f5f5f5;
+    border-color: #bbb;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.google-icon {
+    flex-shrink: 0;
+}
+
+/* Divider */
+.auth-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 20px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+}
+
+.auth-divider span {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+/* Form Options */
+.form-options {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    font-size: 0.85rem;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--color-text-muted);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--color-primary);
+}
+
+.forgot-link,
+.terms-link {
+    color: var(--color-primary);
+    transition: var(--transition);
+}
+
+.forgot-link:hover,
+.terms-link:hover {
+    color: var(--color-primary-light);
+    text-decoration: underline;
+}
+
+.auth-submit-btn {
+    width: 100%;
+    padding: 16px;
+    font-size: 1rem;
+}
+
+/* Phone Option */
+.auth-phone-option {
+    margin-top: 20px;
+}
+
+.auth-phone-btn {
+    width: 100%;
+    padding: 12px;
+    font-size: 0.9rem;
+}
+
+/* ================================================================
+   14. OTP VERIFICATION MODAL
+   ================================================================ */
+.otp-modal-content {
+    max-width: 440px;
+    padding: 40px 36px;
+    text-align: center;
+}
+
+.otp-header {
+    margin-bottom: 32px;
+}
+
+.otp-icon {
+    font-size: 3rem;
+    margin-bottom: 12px;
+}
+
+.otp-header h3 {
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    color: var(--color-white);
+    margin-bottom: 8px;
+}
+
+.otp-subtext {
+    font-size: 0.9rem;
+    color: var(--color-text-muted);
+}
+
+.otp-subtext span {
+    color: var(--color-primary);
+    font-weight: 600;
+}
+
+/* OTP Input Fields */
+.otp-input-wrapper {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-bottom: 24px;
+}
+
+.otp-input {
+    width: 52px;
+    height: 60px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: var(--font-heading);
+    color: var(--color-white);
+    background: rgba(255,255,255,0.05);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius);
+    outline: none;
+    transition: var(--transition);
+    caret-color: var(--color-primary);
+}
+
+.otp-input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(193, 154, 43, 0.2);
+    background: rgba(193, 154, 43, 0.08);
+}
+
+.otp-input.filled {
+    border-color: var(--color-primary);
+    background: rgba(193, 154, 43, 0.1);
+}
+
+/* OTP Timer */
+.otp-timer {
+    margin-bottom: 24px;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.otp-timer strong {
+    color: var(--color-primary);
+}
+
+#otp-verify-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ================================================================
+   15. WELCOME SCREEN (Post-Login)
+   ================================================================ */
+.welcome-content {
+    max-width: 560px;
+    padding: 50px 40px;
+    text-align: center;
+}
+
+.welcome-header {
+    margin-bottom: 28px;
+}
+
+.welcome-avatar {
+    font-size: 4rem;
+    margin-bottom: 12px;
+    animation: pulse-logo 2s ease-in-out infinite;
+}
+
+.welcome-greeting {
+    font-family: var(--font-heading);
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: var(--color-white);
+    margin-bottom: 8px;
+}
+
+.welcome-greeting span {
+    color: var(--color-primary);
+}
+
+.welcome-subtitle {
+    font-size: 1rem;
+    color: var(--color-text-muted);
+}
+
+/* Welcome Copy Variations */
+.welcome-variations {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 28px;
+}
+
+.welcome-variation-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 18px;
+    background: rgba(193, 154, 43, 0.06);
+    border-radius: var(--radius);
+    border: 1px solid rgba(193, 154, 43, 0.12);
+    text-align: left;
+    transition: var(--transition);
+}
+
+.welcome-variation-card:hover {
+    background: rgba(193, 154, 43, 0.1);
+    border-color: var(--color-primary);
+    transform: translateX(4px);
+}
+
+.variation-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.variation-text {
+    font-size: 0.9rem;
+    color: var(--color-text);
+    line-height: 1.5;
+    font-style: italic;
+}
+
+/* Welcome Actions */
+.welcome-actions {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.welcome-action-btn {
+    min-width: 180px;
+    padding: 14px 24px;
+    font-size: 0.95rem;
+}
+
+.welcome-footer-text {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+}
+
+/* ================================================================
    ANIMATION UTILITY CLASSES
    ================================================================ */
 .fade-in {
@@ -1755,5 +2157,29 @@ img {
 
     .about-image-card img {
         height: 140px;
+    }
+
+    /* Auth modal responsive */
+    .auth-modal-content {
+        padding: 30px 20px !important;
+        max-width: 95% !important;
+    }
+
+    .auth-logo {
+        font-size: 2rem !important;
+    }
+
+    .otp-input {
+        width: 42px !important;
+        height: 48px !important;
+        font-size: 1.2rem !important;
+    }
+
+    .welcome-variations {
+        grid-template-columns: 1fr !important;
+    }
+
+    .welcome-greeting {
+        font-size: 1.3rem !important;
     }
 }

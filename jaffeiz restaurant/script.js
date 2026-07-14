@@ -1477,9 +1477,413 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // ================================================================
-// 16. CONSOLE WELCOME MESSAGE
+// 16. AUTH & WELCOME SYSTEM
 // ================================================================
 
-console.log('%c🍽️ Jaffeiz Restaurant', 'font-size: 24px; font-weight: bold; color: #c19a2b;');
-console.log('%cA World of Flavor Awaits Since 2010.', 'font-size: 14px; color: #aaa;');
-console.log('%cBuilt with ❤️ using HTML, CSS & Vanilla JS', 'font-size: 12px; color: #666;');
+(function() {
+    'use strict';
+
+    // ---- DOM References ----
+    const authBtn = document.getElementById('auth-btn');
+    const authModal = document.getElementById('auth-modal');
+    const authModalClose = document.getElementById('auth-modal-close');
+    const authTabs = document.querySelectorAll('.auth-tab');
+    const authLogin = document.getElementById('auth-login');
+    const authSignup = document.getElementById('auth-signup');
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const loginWithPhone = document.getElementById('login-with-phone');
+    const signupWithPhone = document.getElementById('signup-with-phone');
+    const googleLoginBtn = document.getElementById('google-login-btn');
+    const googleSignupBtn = document.getElementById('google-signup-btn');
+
+    const otpModal = document.getElementById('otp-modal');
+    const otpModalClose = document.getElementById('otp-modal-close');
+    const otpInputs = document.querySelectorAll('.otp-input');
+    const otpVerifyBtn = document.getElementById('otp-verify-btn');
+    const otpResend = document.getElementById('otp-resend');
+    const otpCountdown = document.getElementById('otp-countdown');
+    const otpTimerText = document.getElementById('otp-timer-text');
+    const otpDestination = document.getElementById('otp-destination');
+    const otpBackBtn = document.getElementById('otp-back-btn');
+
+    const welcomeScreen = document.getElementById('welcome-screen');
+    const welcomeClose = document.getElementById('welcome-close');
+    const welcomeName = document.getElementById('welcome-name');
+    const welcomeGreeting = document.getElementById('welcome-greeting');
+    const welcomeSubtitle = document.getElementById('welcome-subtitle');
+    const welcomeAvatar = document.getElementById('welcome-avatar');
+    const welcomeOrderBtn = document.getElementById('welcome-order-btn');
+    const welcomeBookBtn = document.getElementById('welcome-book-btn');
+
+    // ---- State ----
+    let otpCountdownInterval = null;
+    let isLoggedIn = false;
+    let currentUserName = 'Guest';
+
+    // ---- Utils ----
+    function openModal(modal) {
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal(modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    function closeAllModals() {
+        closeModal(authModal);
+        closeModal(otpModal);
+        closeModal(welcomeScreen);
+    }
+
+    // ---- Toggle Auth Modal ----
+    authBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        openModal(authModal);
+    });
+
+    authModalClose.addEventListener('click', function() {
+        closeModal(authModal);
+    });
+
+    authModal.addEventListener('click', function(e) {
+        if (e.target === authModal) closeModal(authModal);
+    });
+
+    // ---- Tab Switching ----
+    authTabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            authTabs.forEach(function(t) { t.classList.remove('active'); });
+            tab.classList.add('active');
+
+            const target = tab.dataset.tab;
+            if (target === 'login') {
+                authLogin.classList.add('active');
+                authSignup.classList.remove('active');
+            } else {
+                authSignup.classList.add('active');
+                authLogin.classList.remove('active');
+            }
+        });
+    });
+
+    // ---- Simulate Google Login ----
+    function handleGoogleAuth(mode) {
+        // Simulate Google OAuth flow
+        const names = ['Haider Jaffri', 'Ali Khan', 'Fatima Ahmed', 'Omar Farooq'];
+        const randomName = names[Math.floor(Math.random() * names.length)];
+        const randomEmail = randomName.toLowerCase().replace(/\s+/g, '.') + '@gmail.com';
+        
+        currentUserName = randomName;
+        closeAllModals();
+        showWelcome(currentUserName, randomEmail, 'Google');
+    }
+
+    googleLoginBtn.addEventListener('click', function() { handleGoogleAuth('login'); });
+    googleSignupBtn.addEventListener('click', function() { handleGoogleAuth('signup'); });
+
+    // ---- Email Login ----
+    loginForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value.trim();
+
+        if (!email || !password) {
+            showAuthError(loginForm, 'Please fill in all fields.');
+            return;
+        }
+
+        // Simple validation — in production, call your auth API
+        if (password.length < 6) {
+            showAuthError(loginForm, 'Password must be at least 6 characters.');
+            return;
+        }
+
+        // Extract name from email
+        currentUserName = email.split('@')[0].replace(/[._-]/g, ' ');
+        currentUserName = currentUserName.charAt(0).toUpperCase() + currentUserName.slice(1);
+        
+        closeAllModals();
+        showWelcome(currentUserName, email, 'email');
+        loginForm.reset();
+    });
+
+    // ---- Sign Up ----
+    signupForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const name = document.getElementById('signup-name').value.trim();
+        const email = document.getElementById('signup-email').value.trim();
+        const password = document.getElementById('signup-password').value.trim();
+        const confirm = document.getElementById('signup-confirm').value.trim();
+        const terms = document.getElementById('signup-terms').checked;
+
+        if (!name || !email || !password || !confirm) {
+            showAuthError(signupForm, 'Please fill in all required fields.');
+            return;
+        }
+
+        if (password !== confirm) {
+            showAuthError(signupForm, 'Passwords do not match.');
+            return;
+        }
+
+        if (password.length < 6) {
+            showAuthError(signupForm, 'Password must be at least 6 characters.');
+            return;
+        }
+
+        if (!terms) {
+            showAuthError(signupForm, 'Please agree to the Terms & Privacy Policy.');
+            return;
+        }
+
+        currentUserName = name;
+        closeAllModals();
+        showWelcome(currentUserName, email, 'email');
+        signupForm.reset();
+    });
+
+    // ---- Show Auth Error ----
+    function showAuthError(form, message) {
+        // Remove existing error
+        const existing = form.querySelector('.auth-error');
+        if (existing) existing.remove();
+
+        const errorEl = document.createElement('p');
+        errorEl.className = 'auth-error';
+        errorEl.textContent = message;
+        errorEl.style.cssText = 'color: var(--color-error); font-size: 0.85rem; margin-bottom: 16px; text-align: center;';
+        
+        const submitBtn = form.querySelector('.auth-submit-btn');
+        submitBtn.parentNode.insertBefore(errorEl, submitBtn);
+
+        // Auto-remove after 3s
+        setTimeout(function() {
+            if (errorEl.parentNode) errorEl.remove();
+        }, 3000);
+    }
+
+    // ---- Phone OTP Flow ----
+    function initiatePhoneOtp(mode) {
+        // Show OTP modal with phone destination
+        otpDestination.textContent = '+92 3XX-XXXXXXX';
+        closeModal(authModal);
+        openModal(otpModal);
+        startOtpCountdown();
+        resetOtpInputs();
+    }
+
+    loginWithPhone.addEventListener('click', function() { initiatePhoneOtp('login'); });
+    signupWithPhone.addEventListener('click', function() { initiatePhoneOtp('signup'); });
+
+    // ---- OTP Input Auto-Focus & Auto-Advance ----
+    otpInputs.forEach(function(input, index) {
+        input.addEventListener('input', function() {
+            // Only allow digits
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value.length === 1) {
+                this.classList.add('filled');
+                // Auto-advance to next input
+                if (index < otpInputs.length - 1) {
+                    otpInputs[index + 1].focus();
+                }
+            } else {
+                this.classList.remove('filled');
+            }
+            checkOtpComplete();
+        });
+
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && !this.value && index > 0) {
+                otpInputs[index - 1].focus();
+                otpInputs[index - 1].classList.remove('filled');
+            }
+        });
+
+        input.addEventListener('focus', function() {
+            this.select();
+        });
+    });
+
+    // Paste event — fill all 6 digits at once
+    document.querySelector('.otp-input-wrapper').addEventListener('paste', function(e) {
+        e.preventDefault();
+        const pasteData = (e.clipboardData || window.clipboardData).getData('text');
+        const digits = pasteData.replace(/[^0-9]/g, '').slice(0, 6);
+        
+        otpInputs.forEach(function(input, i) {
+            if (digits[i]) {
+                input.value = digits[i];
+                input.classList.add('filled');
+            }
+        });
+        
+        checkOtpComplete();
+        // Focus the next empty input or the last one
+        for (let i = 0; i < otpInputs.length; i++) {
+            if (!otpInputs[i].value && i < otpInputs.length - 1) {
+                otpInputs[i].focus();
+                return;
+            }
+        }
+        otpInputs[otpInputs.length - 1].focus();
+    });
+
+    function resetOtpInputs() {
+        otpInputs.forEach(function(input) {
+            input.value = '';
+            input.classList.remove('filled');
+        });
+        otpInputs[0].focus();
+        otpVerifyBtn.disabled = true;
+    }
+
+    function checkOtpComplete() {
+        let allFilled = true;
+        otpInputs.forEach(function(input) {
+            if (!input.value) allFilled = false;
+        });
+        otpVerifyBtn.disabled = !allFilled;
+    }
+
+    // ---- OTP Countdown ----
+    function startOtpCountdown() {
+        if (otpCountdownInterval) clearInterval(otpCountdownInterval);
+        
+        let seconds = 30;
+        otpCountdown.textContent = seconds;
+        otpTimerText.style.display = 'inline';
+        otpResend.style.display = 'none';
+        otpResend.disabled = true;
+
+        otpCountdownInterval = setInterval(function() {
+            seconds--;
+            otpCountdown.textContent = seconds;
+            
+            if (seconds <= 0) {
+                clearInterval(otpCountdownInterval);
+                otpCountdownInterval = null;
+                otpTimerText.style.display = 'none';
+                otpResend.style.display = 'inline-block';
+                otpResend.disabled = false;
+            }
+        }, 1000);
+    }
+
+    otpResend.addEventListener('click', function() {
+        resetOtpInputs();
+        startOtpCountdown();
+    });
+
+    // ---- OTP Verify ----
+    otpVerifyBtn.addEventListener('click', function() {
+        // Simulate OTP verification
+        const code = Array.from(otpInputs).map(function(inp) { return inp.value; }).join('');
+        
+        // Always succeed for demo purposes
+        clearInterval(otpCountdownInterval);
+        otpCountdownInterval = null;
+        
+        const names = ['Haider Jaffri', 'Ali Khan', 'Fatima Ahmed', 'Omar Farooq', 'Zara Malik'];
+        currentUserName = names[Math.floor(Math.random() * names.length)];
+        
+        closeAllModals();
+        showWelcome(currentUserName, '+92 3XX-XXXXXXX', 'phone');
+    });
+
+    // ---- OTP Back Button ----
+    otpBackBtn.addEventListener('click', function() {
+        closeModal(otpModal);
+        openModal(authModal);
+        resetOtpInputs();
+        if (otpCountdownInterval) {
+            clearInterval(otpCountdownInterval);
+            otpCountdownInterval = null;
+        }
+    });
+
+    otpModalClose.addEventListener('click', function() { closeModal(otpModal); });
+    otpModal.addEventListener('click', function(e) {
+        if (e.target === otpModal) closeModal(otpModal);
+    });
+
+    // ---- Show Welcome Screen ----
+    function showWelcome(name, identifier, method) {
+        isLoggedIn = true;
+        
+        // Update welcome content with user's name
+        welcomeName.textContent = name;
+        
+        // Pick a random greeting variation
+        const greetings = [
+            'Welcome to Jaffeiz, ',
+            'Great to see you, ',
+            'Ready to feast, '
+        ];
+        const randomGreeting = greetings[Math.floor(Math.random() * greetings.length)];
+        welcomeGreeting.innerHTML = randomGreeting + '<span>' + name + '</span>! 👋';
+        
+        // Set subtitle based on method
+        if (method === 'Google') {
+            welcomeSubtitle.textContent = 'Signed in with Google. A world of flavor awaits!';
+        } else if (method === 'phone') {
+            welcomeSubtitle.textContent = 'Phone verified successfully. Let\'s eat! 🍽️';
+        } else {
+            welcomeSubtitle.textContent = 'Account verified. Ready to explore the flavors of Jaffeiz?';
+        }
+
+        // Set avatar based on name initial
+        const initial = name.charAt(0).toUpperCase();
+        welcomeAvatar.textContent = '👤';
+        
+        // Update auth button
+        authBtn.textContent = 'My Account';
+        authBtn.style.background = 'linear-gradient(135deg, #28a745, #20c997)';
+        
+        openModal(welcomeScreen);
+    }
+
+    // ---- Welcome Screen Close & Navigation ----
+    welcomeClose.addEventListener('click', function() {
+        closeModal(welcomeScreen);
+    });
+
+    welcomeScreen.addEventListener('click', function(e) {
+        if (e.target === welcomeScreen) closeModal(welcomeScreen);
+    });
+
+    welcomeOrderBtn.addEventListener('click', function() {
+        closeModal(welcomeScreen);
+        // Smooth scroll to menu
+        document.getElementById('menu').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    welcomeBookBtn.addEventListener('click', function() {
+        closeModal(welcomeScreen);
+        document.getElementById('booking').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // ---- Keyboard Shortcut: Enter on OTP ----
+    otpInputs.forEach(function(input) {
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !otpVerifyBtn.disabled) {
+                otpVerifyBtn.click();
+            }
+        });
+    });
+
+    // ---- Keyboard: Escape to close modals ----
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            if (welcomeScreen.style.display === 'flex') closeModal(welcomeScreen);
+            else if (otpModal.style.display === 'flex') closeModal(otpModal);
+            else if (authModal.style.display === 'flex') closeModal(authModal);
+        }
+    });
+
+    console.log('%c🔐 Jaffeiz Auth System Loaded', 'font-size: 14px; color: #c19a2b;');
+    console.log('%c📱 Multi-Method: Email | Phone OTP | Google', 'font-size: 12px; color: #aaa;');
+
+})();

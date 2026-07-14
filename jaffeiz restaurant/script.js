@@ -3,7 +3,7 @@
    ================================================================
    Features: Loading screen, particles, typing effect, menu filter,
    cart system, coupon, booking/billing flow, review carousel,
-   scroll animations, mobile nav, promo banner.
+   scroll animations, mobile nav, promo banner, 4-step checkout.
    ================================================================ */
 
 'use strict';
@@ -1249,144 +1249,483 @@ function initScrollAnimations() {
 document.addEventListener('DOMContentLoaded', initScrollAnimations);
 
 // ================================================================
-// 13. CART BILLING PROCESS (Checkout with Order Summary)
+// 13. 4-STEP CHECKOUT PROCESS
 // ================================================================
 
-function initCartBilling() {
+function initCheckout() {
     const checkoutBtn = document.getElementById('checkout-btn');
-    const cartBilling = document.getElementById('cart-billing');
-    const cartBillingForm = document.getElementById('cart-billing-form');
-    const cartBillingCancel = document.getElementById('cart-billing-cancel');
-    const cartBillingSummary = document.getElementById('cart-billing-summary');
+    const checkoutModal = document.getElementById('checkout-modal');
+    const checkoutModalClose = document.getElementById('checkout-modal-close');
+    const steps = document.querySelectorAll('.checkout-step');
+    const progressSteps = document.querySelectorAll('.progress-step');
+    const nextBtns = document.querySelectorAll('.step-next-btn');
+    const backBtns = document.querySelectorAll('.step-back-btn');
+    const placeOrderBtn = document.getElementById('place-order-btn');
+    const prepAcknowledge = document.getElementById('prep-acknowledge');
+    const orderConfirmModal = document.getElementById('order-confirm-modal');
+    const orderConfirmClose = document.getElementById('order-confirm-close');
+
+    // Checkout data collected across steps
+    let checkoutData = {
+        phone: '',
+        email: '',
+        name: '',
+        address: '',
+        cardName: '',
+        cardNumber: '',
+        expiry: '',
+        cvv: '',
+        paymentMethod: 'card'
+    };
+
+    // OTP state
+    let otpCountdownInterval = null;
+    let phoneVerified = false;
 
     if (!checkoutBtn) return;
 
-    // Show billing form when checkout is clicked
+    // ---- Open checkout modal ----
     checkoutBtn.addEventListener('click', () => {
         if (cart.length === 0) return;
+        // Reset checkout state
+        resetCheckout();
+        // Populate billing summary in step 3
+        populateBillingSummary();
+        checkoutModal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    });
 
-        // Build order summary HTML
-        let summaryHtml = '<table class="billing-table"><thead><tr><th>Item</th><th>Qty</th><th>Price</th></tr></thead><tbody>';
+    // ---- Close checkout modal ----
+    function closeCheckoutModal() {
+        checkoutModal.style.display = 'none';
+        document.body.style.overflow = '';
+        if (otpCountdownInterval) {
+            clearInterval(otpCountdownInterval);
+            otpCountdownInterval = null;
+        }
+    }
+
+    checkoutModalClose.addEventListener('click', closeCheckoutModal);
+    checkoutModal.addEventListener('click', (e) => {
+        if (e.target === checkoutModal) closeCheckoutModal();
+    });
+
+    // ---- Reset checkout to step 1 ----
+    function resetCheckout() {
+        phoneVerified = false;
+        checkoutData = {
+            phone: '',
+            email: '',
+            name: '',
+            address: '',
+            cardName: '',
+            cardNumber: '',
+            expiry: '',
+            cvv: '',
+            paymentMethod: 'card'
+        };
+        // Reset OTP section
+        const otpSection = document.getElementById('step1-otp-section');
+        otpSection.classList.remove('show');
+        document.getElementById('step1-otp-success').style.display = 'none';
+        document.getElementById('step1-otp-error').style.display = 'none';
+        document.querySelectorAll('.checkout-otp-input').forEach(inp => {
+            inp.value = '';
+            inp.classList.remove('filled');
+        });
+        document.getElementById('checkout-phone').value = '';
+        document.getElementById('checkout-email').value = '';
+        document.getElementById('checkout-name').value = '';
+        document.getElementById('checkout-address').value = '';
+        document.getElementById('checkout-card-name').value = '';
+        document.getElementById('checkout-card-number').value = '';
+        document.getElementById('checkout-expiry').value = '';
+        document.getElementById('checkout-cvv').value = '';
+        document.getElementById('checkout-payment-method').value = 'card';
+        prepAcknowledge.checked = false;
+        placeOrderBtn.disabled = true;
+        goToStep(1);
+    }
+
+    // ---- Navigate to a specific step ----
+    function goToStep(stepNum) {
+        // Update steps
+        steps.forEach(s => s.classList.remove('active'));
+        const targetStep = document.querySelector(`.checkout-step[data-step="${stepNum}"]`);
+        if (targetStep) targetStep.classList.add('active');
+
+        // Update progress bar
+        progressSteps.forEach(ps => {
+            const psNum = parseInt(ps.dataset.step);
+            ps.classList.remove('active', 'completed');
+            if (psNum === stepNum) {
+                ps.classList.add('active');
+            } else if (psNum < stepNum) {
+                ps.classList.add('completed');
+            }
+        });
+
+        // Scroll to top of modal content
+        document.querySelector('.checkout-modal-content').scrollTop = 0;
+        checkoutModal.scrollTop = 0;
+    }
+
+    // ---- Step navigation: Next buttons ----
+    nextBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = parseInt(btn.dataset.target);
+            goToStep(target);
+        });
+    });
+
+    // ---- Step navigation: Back buttons ----
+    backBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const target = parseInt(btn.dataset.target);
+            goToStep(target);
+        });
+    });
+
+    // ================================================================
+    // STEP 1: PHONE VERIFICATION WITH OTP
+    // ================================================================
+
+    const sendOtpBtn = document.getElementById('step1-send-otp-btn');
+    const phoneInput = document.getElementById('checkout-phone');
+    const step1NextBtn = document.querySelector('.checkout-step[data-step="1"] .step-next-btn');
+    const otpInputs = document.querySelectorAll('.checkout-otp-input');
+    const otpSection = document.getElementById('step1-otp-section');
+    const otpSuccessMsg = document.getElementById('step1-otp-success');
+    const otpErrorMsg = document.getElementById('step1-otp-error');
+    const otpTimerText = document.querySelector('.otp-timer-text');
+    const otpCountdownEl = document.querySelector('.otp-countdown');
+    const otpResendBtn = document.querySelector('.otp-resend-btn');
+
+    // Send OTP button
+    sendOtpBtn.addEventListener('click', () => {
+        const phone = phoneInput.value.trim();
+        if (!phone || phone.length < 10) {
+            alert('Please enter a valid phone number.');
+            return;
+        }
+        checkoutData.phone = phone;
+        // Show OTP section
+        otpSection.classList.add('show');
+        otpSuccessMsg.style.display = 'none';
+        otpErrorMsg.style.display = 'none';
+        // Reset OTP inputs
+        otpInputs.forEach(inp => {
+            inp.value = '';
+            inp.classList.remove('filled');
+        });
+        otpInputs[0].focus();
+        startOtpCountdown();
+        sendOtpBtn.textContent = '📨 Code Sent!';
+        sendOtpBtn.disabled = true;
+        setTimeout(() => {
+            sendOtpBtn.textContent = '📨 Resend Code';
+            sendOtpBtn.disabled = false;
+        }, 30000);
+    });
+
+    // OTP input handling
+    otpInputs.forEach((input, index) => {
+        input.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+            if (this.value.length === 1) {
+                this.classList.add('filled');
+                if (index < otpInputs.length - 1) {
+                    otpInputs[index + 1].focus();
+                }
+            } else {
+                this.classList.remove('filled');
+            }
+            checkOtpComplete();
+        });
+
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Backspace' && !this.value && index > 0) {
+                otpInputs[index - 1].focus();
+                otpInputs[index - 1].classList.remove('filled');
+            }
+        });
+
+        input.addEventListener('focus', function() {
+            this.select();
+        });
+    });
+
+    function checkOtpComplete() {
+        let allFilled = true;
+        otpInputs.forEach(inp => {
+            if (!inp.value) allFilled = false;
+        });
+        if (allFilled) {
+            // Auto-verify OTP (simulated)
+            setTimeout(() => {
+                verifyOtp();
+            }, 300);
+        }
+    }
+
+    function verifyOtp() {
+        // Simulate OTP verification - always succeeds
+        if (otpCountdownInterval) {
+            clearInterval(otpCountdownInterval);
+            otpCountdownInterval = null;
+        }
+        phoneVerified = true;
+        otpSuccessMsg.style.display = 'block';
+        otpErrorMsg.style.display = 'none';
+        otpTimerText.style.display = 'none';
+        otpResendBtn.style.display = 'none';
+        // Enable step 1 next button
+        step1NextBtn.disabled = false;
+        // Disable OTP inputs
+        otpInputs.forEach(inp => inp.disabled = true);
+        sendOtpBtn.disabled = true;
+    }
+
+    function startOtpCountdown() {
+        if (otpCountdownInterval) clearInterval(otpCountdownInterval);
+        let seconds = 30;
+        otpCountdownEl.textContent = seconds;
+        otpTimerText.style.display = 'inline';
+        otpResendBtn.style.display = 'none';
+
+        otpCountdownInterval = setInterval(() => {
+            seconds--;
+            otpCountdownEl.textContent = seconds;
+            if (seconds <= 0) {
+                clearInterval(otpCountdownInterval);
+                otpCountdownInterval = null;
+                otpTimerText.style.display = 'none';
+                otpResendBtn.style.display = 'inline-block';
+            }
+        }, 1000);
+    }
+
+    otpResendBtn.addEventListener('click', () => {
+        otpInputs.forEach(inp => {
+            inp.value = '';
+            inp.classList.remove('filled');
+        });
+        otpInputs[0].focus();
+        startOtpCountdown();
+    });
+
+    // ================================================================
+    // STEP 2: EMAIL CONFIRMATION
+    // ================================================================
+
+    const emailInput = document.getElementById('checkout-email');
+    const step2NextBtn = document.querySelector('.checkout-step[data-step="2"] .step-next-btn');
+
+    emailInput.addEventListener('input', () => {
+        const email = emailInput.value.trim();
+        const isValid = email.length > 0 && email.includes('@') && email.includes('.');
+        step2NextBtn.disabled = !isValid;
+        if (isValid) {
+            checkoutData.email = email;
+        }
+    });
+
+    // ================================================================
+    // STEP 3: PAYMENT DETAILS
+    // ================================================================
+
+    const nameInput = document.getElementById('checkout-name');
+    const addressInput = document.getElementById('checkout-address');
+    const cardNameInput = document.getElementById('checkout-card-name');
+    const cardNumberInput = document.getElementById('checkout-card-number');
+    const expiryInput = document.getElementById('checkout-expiry');
+    const cvvInput = document.getElementById('checkout-cvv');
+    const paymentMethodSelect = document.getElementById('checkout-payment-method');
+    const step3NextBtn = document.querySelector('.checkout-step[data-step="3"] .step-next-btn');
+
+    // Card number formatting
+    cardNumberInput.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 16) value = value.slice(0, 16);
+        value = value.replace(/(\d{4})(?=\d)/g, '$1 ');
+        e.target.value = value;
+        checkoutData.cardNumber = value.replace(/\s/g, '');
+    });
+
+    // Expiry formatting
+    expiryInput.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 4) value = value.slice(0, 4);
+        if (value.length > 2) {
+            value = value.slice(0, 2) + '/' + value.slice(2);
+        }
+        e.target.value = value;
+        checkoutData.expiry = value;
+    });
+
+    // CVV formatting
+    cvvInput.addEventListener('input', (e) => {
+        let value = e.target.value.replace(/\D/g, '');
+        if (value.length > 4) value = value.slice(0, 4);
+        e.target.value = value;
+        checkoutData.cvv = value;
+    });
+
+    // Collect data on input
+    nameInput.addEventListener('input', () => { checkoutData.name = nameInput.value.trim(); });
+    addressInput.addEventListener('input', () => { checkoutData.address = addressInput.value.trim(); });
+    cardNameInput.addEventListener('input', () => { checkoutData.cardName = cardNameInput.value.trim(); });
+    paymentMethodSelect.addEventListener('change', () => { checkoutData.paymentMethod = paymentMethodSelect.value; });
+
+    // Step 3 next: validate and populate step 4 summary
+    step3NextBtn.addEventListener('click', () => {
+        checkoutData.name = nameInput.value.trim();
+        checkoutData.address = addressInput.value.trim();
+        checkoutData.cardName = cardNameInput.value.trim();
+
+        if (!checkoutData.name || !checkoutData.address) {
+            alert('Please enter your full name and delivery address.');
+            return;
+        }
+
+        // Populate step 4 confirmation summary
+        document.getElementById('confirm-address').textContent = checkoutData.address;
+        document.getElementById('confirm-phone').textContent = checkoutData.phone;
+        document.getElementById('confirm-email').textContent = checkoutData.email;
+        const paymentLabels = {
+            'card': 'Credit / Debit Card',
+            'cod': 'Cash on Delivery',
+            'jazzcash': 'JazzCash',
+            'easypaisa': 'EasyPaisa'
+        };
+        document.getElementById('confirm-payment').textContent = paymentLabels[checkoutData.paymentMethod] || checkoutData.paymentMethod;
+        const total = getCartTotal();
+        document.getElementById('confirm-total').textContent = `Rs. ${total.toLocaleString()}`;
+
+        goToStep(4);
+    });
+
+    // ================================================================
+    // STEP 4: PREP TIME NOTICE & PLACE ORDER
+    // ================================================================
+
+    prepAcknowledge.addEventListener('change', () => {
+        placeOrderBtn.disabled = !prepAcknowledge.checked;
+    });
+
+    // Place order
+    placeOrderBtn.addEventListener('click', () => {
+        if (!prepAcknowledge.checked) return;
+
+        // Build order confirmation
+        const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        let finalTotal = subtotal;
+        let discountLine = '';
+        if (couponApplied && discountPercent > 0) {
+            const discountAmount = subtotal * (discountPercent / 100);
+            finalTotal = subtotal - discountAmount;
+            discountLine = `<p>Discount (${discountPercent}% OFF): <span style="color: #28a745;">-Rs. ${discountAmount.toLocaleString()}</span></p>`;
+        }
+
+        const orderNum = 'JZ-' + Math.floor(100000 + Math.random() * 900000);
+        const paymentLabels = {
+            'card': 'Credit / Debit Card',
+            'cod': 'Cash on Delivery',
+            'jazzcash': 'JazzCash',
+            'easypaisa': 'EasyPaisa'
+        };
+
+        // Calculate estimated prep time
+        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        let prepTime = '20–30 minutes';
+        if (totalItems <= 2) {
+            prepTime = '10–15 minutes';
+        } else if (totalItems >= 6) {
+            prepTime = '35–45 minutes';
+        }
+
+        const confirmBody = `
+            <p>Thank you, <strong>${checkoutData.name}</strong>!</p>
+            <p>Your Jaffeiz order is now in the hands of our chefs. Here's what happens next:</p>
+            <p style="text-align: left; margin: 16px 0;">
+                1. 👨‍🍳 <strong>Our kitchen starts prepping</strong> — fresh, from scratch<br>
+                2. 🔥 <strong>Your meal is cooked to perfection</strong> — just the way you like it<br>
+                3. 🚀 <strong>Your order is on its way</strong> — you'll get a tracking update via SMS
+            </p>
+            <div style="background: rgba(193, 154, 43, 0.08); border-radius: 8px; padding: 16px; margin: 16px 0; text-align: left;">
+                <strong>Order Summary</strong><br>
+                🆔 Order #: ${orderNum}<br>
+                📧 Receipt sent to: ${checkoutData.email}<br>
+                📱 Tracking updates: ${checkoutData.phone}<br>
+                📍 Delivering to: ${checkoutData.address}<br>
+                💰 Total charged: Rs. ${finalTotal.toLocaleString()}<br>
+                ⏳ Estimated prep time: <strong>${prepTime}</strong>
+            </div>
+            <p>We'll text you the moment your driver is on the way. Get ready for an unforgettable taste of Pakistan! 🇵🇰✨</p>
+        `;
+
+        document.getElementById('order-confirm-body').innerHTML = confirmBody;
+
+        // Close checkout modal, open confirmation modal
+        closeCheckoutModal();
+        orderConfirmModal.style.display = 'flex';
+    });
+
+    // Close order confirmation
+    orderConfirmClose.addEventListener('click', () => {
+        orderConfirmModal.style.display = 'none';
+        // Reset cart
+        cart = [];
+        couponApplied = false;
+        discountPercent = 0;
+        updateCartUI();
+    });
+
+    orderConfirmModal.addEventListener('click', (e) => {
+        if (e.target === orderConfirmModal) {
+            orderConfirmModal.style.display = 'none';
+            cart = [];
+            couponApplied = false;
+            discountPercent = 0;
+            updateCartUI();
+        }
+    });
+
+    // ================================================================
+    // Populate billing summary in step 3
+    // ================================================================
+
+    function populateBillingSummary() {
+        const summaryItems = document.getElementById('checkout-summary-items');
+        const totalsDiv = document.getElementById('checkout-totals');
+
+        let itemsHtml = '';
         cart.forEach(item => {
             const itemTotal = item.price * item.quantity;
-            summaryHtml += `<tr><td>${item.name}</td><td>${item.quantity}</td><td>Rs. ${itemTotal.toLocaleString()}</td></tr>`;
+            itemsHtml += `
+                <div class="checkout-summary-item">
+                    <span class="item-name">${item.name}</span>
+                    <span class="item-qty">${item.quantity}</span>
+                    <span class="item-price">Rs. ${itemTotal.toLocaleString()}</span>
+                </div>
+            `;
         });
-        summaryHtml += '</tbody></table>';
+        summaryItems.innerHTML = itemsHtml;
 
         const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-        let discountLine = '';
+        let totalsHtml = `<p>Subtotal: <span>Rs. ${subtotal.toLocaleString()}</span></p>`;
         let finalTotal = subtotal;
         if (couponApplied && discountPercent > 0) {
             const discountAmount = subtotal * (discountPercent / 100);
             finalTotal = subtotal - discountAmount;
-            discountLine = `<p class="billing-discount">Discount (${discountPercent}% OFF): <span>-Rs. ${discountAmount.toLocaleString()}</span></p>`;
+            totalsHtml += `<p class="checkout-discount">Discount (${discountPercent}% OFF): <span>-Rs. ${discountAmount.toLocaleString()}</span></p>`;
         }
-
-        summaryHtml += `
-            <div class="billing-totals">
-                <p>Subtotal: <span>Rs. ${subtotal.toLocaleString()}</span></p>
-                ${discountLine}
-                <p class="billing-grand-total">Total: <span>Rs. ${finalTotal.toLocaleString()}</span></p>
-            </div>
-        `;
-
-        cartBillingSummary.innerHTML = summaryHtml;
-        cartBilling.style.display = 'block';
-        cartBilling.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-
-    // Cancel billing
-    if (cartBillingCancel) {
-        cartBillingCancel.addEventListener('click', () => {
-            cartBilling.style.display = 'none';
-        });
-    }
-
-    // Place order
-    if (cartBillingForm) {
-        cartBillingForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-
-            const name = document.getElementById('cart-delivery-name').value.trim();
-            const phone = document.getElementById('cart-delivery-phone').value.trim();
-            const address = document.getElementById('cart-delivery-address').value.trim();
-            const paymentMethod = document.getElementById('cart-payment-method').value;
-
-            if (!name || !phone || !address) {
-                alert('Please fill in all delivery details.');
-                return;
-            }
-
-            // Build order details for confirmation
-            const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-            let finalTotal = subtotal;
-            if (couponApplied && discountPercent > 0) {
-                finalTotal = subtotal * (1 - discountPercent / 100);
-            }
-
-            const paymentLabels = {
-                'cod': 'Cash on Delivery',
-                'card': 'Credit / Debit Card',
-                'jazzcash': 'JazzCash',
-                'easypaisa': 'EasyPaisa'
-            };
-
-            // Show success message
-            const orderSummary = `
-                🎉 <strong>Order Placed Successfully!</strong><br><br>
-                <strong>Customer:</strong> ${name}<br>
-                <strong>Phone:</strong> ${phone}<br>
-                <strong>Address:</strong> ${address}<br>
-                <strong>Payment:</strong> ${paymentLabels[paymentMethod] || paymentMethod}<br>
-                <strong>Total:</strong> Rs. ${finalTotal.toLocaleString()}<br><br>
-                Your delicious food is on its way! 🚀
-            `;
-
-            // Show success in modal
-            const successModal = document.getElementById('success-modal');
-            if (successModal) {
-                const modalContent = successModal.querySelector('.modal-content');
-                if (modalContent) {
-                    modalContent.innerHTML = `
-                        <div class="modal-icon">✅</div>
-                        <h2>Order Confirmed!</h2>
-                        <p>${orderSummary}</p>
-                        <button id="order-close-btn" class="btn btn-primary">Awesome, Thanks!</button>
-                    `;
-                }
-                successModal.style.display = 'flex';
-
-                // Close modal handler
-                const orderCloseBtn = document.getElementById('order-close-btn');
-                if (orderCloseBtn) {
-                    orderCloseBtn.addEventListener('click', () => {
-                        successModal.style.display = 'none';
-                        // Reset cart
-                        cart = [];
-                        couponApplied = false;
-                        discountPercent = 0;
-                        updateCartUI();
-                        cartBilling.style.display = 'none';
-                        cartBillingForm.reset();
-                        // Restore modal content
-                        modalContent.innerHTML = `
-                            <div class="modal-icon">✅</div>
-                            <h2>Payment Successful!</h2>
-                            <p>A confirmation email has been sent to your email address regarding your table booking.</p>
-                            <button id="modal-close" class="btn btn-primary">Great, Thanks!</button>
-                        `;
-                        // Re-attach modal close
-                        document.getElementById('modal-close').addEventListener('click', () => {
-                            successModal.style.display = 'none';
-                        });
-                    });
-                }
-            }
-        });
+        totalsHtml += `<p class="checkout-grand-total">Total: <span>Rs. ${finalTotal.toLocaleString()}</span></p>`;
+        totalsDiv.innerHTML = totalsHtml;
     }
 }
 
-document.addEventListener('DOMContentLoaded', initCartBilling);
+document.addEventListener('DOMContentLoaded', initCheckout);
 
 // ================================================================
 // 14. SMOOTH SCROLL FOR ALL ANCHOR LINKS

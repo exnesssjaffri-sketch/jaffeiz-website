@@ -551,30 +551,93 @@ Add these styles to `styles.css` to make the copy look polished:
     accent-color: #c19a2b;
     cursor: pointer;
 }
-```
 
----
+/* Step navigation buttons */
+.step-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
 
-## Summary: All Copy at a Glance
+.step-actions .btn {
+    flex: 1;
+}
 
-| Element | Copy |
-|---------|------|
-| **Step 1 Header** | 📱 Verify Your Phone Number |
-| **Step 1 Description** | We'll send a quick one-time code to your phone. This helps us keep your order secure, prevent spam bookings, and send you real-time delivery updates. |
-| **Step 1 Button** | 📨 Send Verification Code |
-| **Step 1 Microcopy** | 🔒 Your number is only used for order updates. We never spam or share your data. |
-| **Step 2 Header** | 📧 Where should we send your receipt? |
-| **Step 2 Description** | Enter your email to receive a detailed digital receipt, a full breakdown of your order, and a tracking link. |
-| **Step 2 Button** | 📄 Send Receipt & Tracking |
-| **Step 2 Microcopy** | No spam, no newsletters — just your order info. We respect your inbox. |
-| **Step 3 Header** | 💳 Secure Payment |
-| **Step 3 Trust Line** | We accept all major cards — Visa, Mastercard, American Express |
-| **Step 3 Trust Microcopy** | 🔒 Your payment is encrypted and processed securely. We use industry-standard SSL encryption. Your card details are never stored on our servers. |
-| **Step 3 Footer** | 🔐 SSL Encrypted • PCI Compliant • 100% Secure |
-| **Step 4 Header** | ⏳ A quick note before you order… |
-| **Step 4 Body** | At Jaffeiz, every meal is made fresh to order… Please allow 20–30 minutes for standard orders, 35–45 minutes for large orders. |
-| **Step 4 Checkbox** | I understand that my order will be freshly prepared and may take 20–30 minutes. |
-| **Step 4 Button** | ✅ Yes, I'm Ready — Place My Order |
-| **Success Header** | 🎉 Order Confirmed! |
-| **Success Body** | Thank you, [Name]! Your Jaffeiz order is now in the hands of our chefs… |
-| **Success Button** | Awesome, Thanks! 🎉 |
+/* OTP verification inline */
+.otp-verify-section {
+    display: none;
+    margin-top: 16px;
+    padding: 16px;
+    background: rgba(193, 154, 43, 0.05);
+    border-radius: 8px;
+    border: 1px solid rgba(193, 154, 43, 0.15);
+}
+
+.otp-verify-section.show {
+    display: block;
+    animation: fadeInUp 0.3s ease;
+}
+
+.otp-input-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 12px 0;
+}
+
+.otp-input-row input {
+    width: 44px;
+    height: 50px;
+    text-align: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    background: rgba(255,255,255,0.08);
+    border: 2px solid rgba(255,255,255,0.15);
+    border-radius: 8px;
+    color: #fff;
+    outline: none;
+    transition: border-color 0.3s ease;
+}
+
+.otp-input-row input:focus {
+    border-color: #c19a2b;
+}
+
+.otp-input-row input.filled {
+    border-color: #28a745;
+    background: rgba(40, 167, 69, 0.1);
+}
+
+.otp-timer-checkout {
+    text-align: center;
+    font-size: 0.85rem;
+    color: #888;
+    margin-top: 8px;
+}
+
+.otp-success-msg {
+    color: #28a745;
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-align: center;
+    padding: 8px;
+    display: none;
+}
+
+/* Step divider */
+.step-divider {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 16px 0;
+    color: #555;
+    font-size: 0.85rem;
+}
+
+.step-divider::before,
+.step-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255,255,255,0.08);
+}
